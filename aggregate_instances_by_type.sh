@@ -100,10 +100,11 @@ _parse_and_reorganize_line_for_account_aggregate() {
         local tenancy=${4}
         echo "${region},${instance_type},${platform},${tenancy},${count}"
     done
-    echo ""
 }
 
 # Account mode aggregation
+# Execution: echo "<profile according to the account>" | bash aggregate_instances_by_type.sh -m account
+# Example execution: echo "default" | bash aggregate_instances_by_type.sh -m account
 aggregate_by_account() {
     _describe_instances_with_profile_by_account | \
     sort                                        | \
@@ -111,9 +112,38 @@ aggregate_by_account() {
     _parse_and_reorganize_line_for_account_aggregate
 }
 
+_divide_output_by_region() {
+    local previous_region=""
+    local -i line_count=0
+
+    while read -r sammerized_line
+    do
+        local this_region=$(echo "${sammerized_line}" | cut -d "," -f 1)
+        if [[ "${previous_region}" != "${this_region}" && $line_count > 0 ]]
+        then
+            echo ""
+            echo "${sammerized_line}"
+        else
+            echo "${sammerized_line}"
+        fi
+        previous_region="$this_region"
+        line_count=$((line_count + 1))
+    done
+}
+
 # Region mode aggregation
+# Execution: cat profile.list | bash aggregate_instances_by_type.sh -m region
+# cat profile.list
+# accountA
+# accountB
+# accountC
+# ...
 aggregate_by_region() {
-    echo "Hello this is aggregate_by_region function."
+    _describe_instances_with_profile_by_account      | \
+    sort                                             | \
+    uniq -c                                          | \
+    _parse_and_reorganize_line_for_account_aggregate | \
+    _divide_output_by_region
 }
 
 ###################################
